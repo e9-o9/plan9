@@ -36,7 +36,7 @@ git push origin v1.0.0
 
 This will automatically:
 - Create a GitHub release
-- Build distributions for all architectures (386, amd64, arm, mips, power, sparc)
+- Build distributions for all architectures (386, amd64, arm, mips, power, power64, sparc)
 - Generate checksums (SHA256 and MD5)
 - Upload all artifacts to the release
 

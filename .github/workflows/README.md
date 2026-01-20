@@ -11,12 +11,12 @@ This directory contains GitHub Actions workflows for automated CI/CD, testing, a
 **Purpose:** Continuous Integration for every code change
 
 **Jobs:**
-- **Build and Test**: Compiles code for multiple architectures (386, amd64, arm)
+- **Build and Test**: Compiles code for multiple architectures (386, amd64, arm, mips, power, power64, sparc)
 - **Lint**: Performs static analysis and code quality checks
 - **Integration**: Validates system structure and critical components
 - **Summary**: Aggregates results from all jobs
 
-**Matrix Strategy:** Tests across 3 architectures in parallel
+**Matrix Strategy:** Tests across 7 architectures in parallel
 
 ### 2. Release Workflow (`release.yml`)
 

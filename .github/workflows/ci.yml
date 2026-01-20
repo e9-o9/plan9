@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [386, amd64, arm, mips, power, sparc]
+        arch: [386, amd64, arm, mips, power, power64, sparc]
       fail-fast: false
     
     steps:
