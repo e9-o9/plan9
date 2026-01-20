@@ -11,9 +11,9 @@ This implementation adds comprehensive CI/CD automation to the Plan 9 4th Editio
 #### CI Workflow (`ci.yml`)
 - **Purpose**: Continuous integration on every code change
 - **Triggers**: Push to main/master/develop, pull requests, manual
-- **Jobs**: Build & test (3 architectures), lint, integration, summary
+- **Jobs**: Build & test (7 architectures), lint, integration, summary
 - **Key Features**:
-  - Multi-architecture matrix build (386, amd64, arm)
+  - Multi-architecture matrix build (386, amd64, arm, mips, power, power64, sparc)
   - Parallel execution for efficiency
   - Source code validation
   - Build system verification
@@ -44,10 +44,10 @@ This implementation adds comprehensive CI/CD automation to the Plan 9 4th Editio
 #### Release Workflow (`release.yml`)
 - **Purpose**: Automated release builds and distribution
 - **Triggers**: Git tags (v*.*.*, release-*), manual
-- **Jobs**: Prepare, build (6 architectures), build-source, verify
+- **Jobs**: Prepare, build (7 architectures), build-source, verify
 - **Key Features**:
   - Automated release creation
-  - Multi-architecture builds (386, amd64, arm, mips, power, sparc)
+  - Multi-architecture builds (386, amd64, arm, mips, power, power64, sparc)
   - Source distribution packaging
   - Checksum generation (SHA256, MD5)
   - Artifact upload to GitHub releases
