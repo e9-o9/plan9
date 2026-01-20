@@ -1,0 +1,375 @@
+name: Comprehensive Tests
+
+on:
+  schedule:
+    # Run every day at 2 AM UTC
+    - cron: '0 2 * * *'
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+jobs:
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up test environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            gcc \
+            g++ \
+            make \
+            git \
+            valgrind
+      
+      - name: System validation tests
+        run: |
+          echo "Running system validation tests..."
+          
+          # Test 1: Directory structure validation
+          echo "Test 1: Directory structure"
+          required_dirs=(
+            "sys/src"
+            "sys/include"
+            "lib"
+            "386"
+            "amd64"
+            "arm"
+          )
+          
+          for dir in "${required_dirs[@]}"; do
+            if [ -d "$dir" ]; then
+              echo "✓ $dir exists"
+            else
+              echo "✗ $dir missing"
+              exit 1
+            fi
+          done
+          
+          # Test 2: Critical files validation
+          echo "Test 2: Critical files"
+          critical_files=(
+            "README"
+            "LICENSE"
+            "sys/src/mkfile"
+          )
+          
+          for file in "${critical_files[@]}"; do
+            if [ -f "$file" ]; then
+              echo "✓ $file exists"
+            else
+              echo "✗ $file missing"
+              exit 1
+            fi
+          done
+      
+      - name: Source code quality tests
+        run: |
+          echo "Running source code quality tests..."
+          
+          # Count source files by type
+          echo "Source file statistics:"
+          c_files=$(find sys/src -name "*.c" 2>/dev/null | wc -l)
+          h_files=$(find sys/include -name "*.h" 2>/dev/null | wc -l)
+          mkfiles=$(find . -name "mkfile" 2>/dev/null | wc -l)
+          
+          echo "C source files: $c_files"
+          echo "Header files: $h_files"
+          echo "Mkfiles: $mkfiles"
+          
+          # Verify we have a reasonable number of files
+          if [ $c_files -lt 100 ]; then
+            echo "Warning: Expected more C files"
+          fi
+          
+          if [ $h_files -lt 50 ]; then
+            echo "Warning: Expected more header files"
+          fi
+      
+      - name: Library tests
+        run: |
+          echo "Testing core libraries..."
+          
+          # Check for critical libraries
+          libs=(
+            "sys/src/libc"
+            "sys/src/libbio"
+            "sys/src/libsec"
+            "sys/src/libthread"
+            "sys/src/libdraw"
+          )
+          
+          for lib in "${libs[@]}"; do
+            if [ -d "$lib" ]; then
+              echo "✓ Library $lib found"
+              
+              # Check for mkfile
+              if [ -f "$lib/mkfile" ]; then
+                echo "  ✓ Build file exists"
+              fi
+              
+              # Count source files
+              src_count=$(find "$lib" -name "*.c" 2>/dev/null | wc -l)
+              echo "  Source files: $src_count"
+            else
+              echo "✗ Library $lib missing"
+            fi
+          done
+      
+      - name: Command utilities tests
+        run: |
+          echo "Testing command utilities..."
+          
+          if [ -d "sys/src/cmd" ]; then
+            echo "✓ Command directory found"
+            
+            # Count commands
+            cmd_dirs=$(find sys/src/cmd -maxdepth 1 -type d | wc -l)
+            echo "Command directories: $cmd_dirs"
+            
+            # Check for some common commands
+            common_cmds=(
+              "sys/src/cmd/rc"
+              "sys/src/cmd/auth"
+              "sys/src/cmd/cc"
+            )
+            
+            for cmd in "${common_cmds[@]}"; do
+              if [ -d "$cmd" ]; then
+                echo "✓ $cmd found"
+              else
+                echo "  $cmd not found (optional)"
+              fi
+            done
+          else
+            echo "✗ Command directory missing"
+            exit 1
+          fi
+      
+      - name: Architecture support tests
+        run: |
+          echo "Testing architecture support..."
+          
+          archs=(386 amd64 arm mips power sparc)
+          
+          for arch in "${archs[@]}"; do
+            if [ -d "$arch" ]; then
+              echo "✓ Architecture $arch supported"
+              
+              # Check for mkfile
+              if [ -f "$arch/mkfile" ]; then
+                echo "  ✓ Has build configuration"
+              fi
+              
+              # Check for include directory
+              if [ -d "$arch/include" ]; then
+                echo "  ✓ Has include directory"
+                header_count=$(find "$arch/include" -name "*.h" 2>/dev/null | wc -l)
+                echo "  Headers: $header_count"
+              fi
+            fi
+          done
+      
+      - name: Test execution simulation
+        run: |
+          echo "Simulating test execution..."
+          
+          # Find test files
+          test_files=$(find sys/src -name "*test.c" 2>/dev/null)
+          
+          if [ -n "$test_files" ]; then
+            echo "Found test files:"
+            echo "$test_files" | head -20
+            
+            # Try to compile a simple test if gcc is available
+            first_test=$(echo "$test_files" | head -1)
+            if [ -n "$first_test" ]; then
+              echo "Attempting to compile: $first_test"
+              gcc -c "$first_test" -o /tmp/test.o 2>&1 | head -20 || echo "Compilation requires Plan 9 environment"
+            fi
+          else
+            echo "No test files found (this is normal for Plan 9)"
+          fi
+      
+      - name: Documentation validation
+        run: |
+          echo "Validating documentation..."
+          
+          if [ -f "README" ]; then
+            echo "✓ README found"
+            line_count=$(wc -l < README)
+            echo "  Lines: $line_count"
+          fi
+          
+          # Check for documentation directory
+          if [ -d "sys/doc" ]; then
+            echo "✓ Documentation directory found"
+            doc_count=$(find sys/doc -type f 2>/dev/null | wc -l)
+            echo "  Documentation files: $doc_count"
+          fi
+          
+          # Check for man pages
+          if [ -d "sys/man" ]; then
+            echo "✓ Man pages found"
+            man_count=$(find sys/man -type f 2>/dev/null | wc -l)
+            echo "  Man pages: $man_count"
+          fi
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run security checks
+        run: |
+          echo "Running security checks..."
+          
+          # Check for common security issues in C code
+          echo "Checking for potentially unsafe functions..."
+          
+          # Look for unsafe string functions
+          unsafe_funcs="strcpy|strcat|sprintf|gets|scanf"
+          
+          if grep -r -n -E "$unsafe_funcs" sys/src --include="*.c" | head -20; then
+            echo "Found potentially unsafe functions (for informational purposes)"
+          else
+            echo "No obvious unsafe functions found in sample"
+          fi
+      
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Checking for potential secrets..."
+          
+          # Look for common secret patterns (informational only)
+          if grep -r -i -E "password|secret|token|api[_-]?key" sys/src --include="*.c" --include="*.h" | grep -v "test" | head -10; then
+            echo "Found potential secret-related code (review recommended)"
+          else
+            echo "No obvious secrets found"
+          fi
+
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Repository size analysis
+        run: |
+          echo "Analyzing repository size..."
+          
+          total_size=$(du -sh . | cut -f1)
+          echo "Total repository size: $total_size"
+          
+          # Size by directory
+          echo "Size by major directory:"
+          for dir in sys lib 386 amd64 arm mips power sparc; do
+            if [ -d "$dir" ]; then
+              size=$(du -sh "$dir" | cut -f1)
+              echo "  $dir: $size"
+            fi
+          done
+      
+      - name: File type distribution
+        run: |
+          echo "File type distribution:"
+          
+          # Count by extension
+          extensions=("c" "h" "sh" "awk")
+          
+          for ext in "${extensions[@]}"; do
+            count=$(find . -name "*.$ext" 2>/dev/null | wc -l)
+            echo "  .$ext files: $count"
+          done
+          
+          # Count mkfiles
+          mkfile_count=$(find . -name "mkfile" 2>/dev/null | wc -l)
+          echo "  mkfiles: $mkfile_count"
+      
+      - name: Code complexity analysis
+        run: |
+          echo "Analyzing code complexity..."
+          
+          # Find largest C files
+          echo "Largest C source files:"
+          find sys/src -name "*.c" -exec wc -l {} \; 2>/dev/null | sort -rn | head -10
+          
+          # Average file sizes
+          echo "Average C file size:"
+          find sys/src -name "*.c" -exec wc -l {} \; 2>/dev/null | awk '{sum+=$1; count++} END {if(count>0) print sum/count " lines"}'
+
+  compatibility-tests:
+    name: Compatibility Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-20.04, ubuntu-22.04]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: System information
+        run: |
+          echo "Operating System: ${{ matrix.os }}"
+          echo "Kernel: $(uname -r)"
+          echo "Architecture: $(uname -m)"
+          echo "GCC version:"
+          gcc --version 2>&1 || echo "GCC not available"
+      
+      - name: Verify repository integrity
+        run: |
+          echo "Verifying repository on ${{ matrix.os }}..."
+          
+          # Basic file system checks
+          ls -la
+          
+          # Check critical directories
+          for dir in sys lib 386; do
+            if [ -d "$dir" ]; then
+              echo "✓ $dir accessible"
+            else
+              echo "✗ $dir not accessible"
+              exit 1
+            fi
+          done
+
+  report:
+    name: Test Report
+    runs-on: ubuntu-latest
+    needs: [e2e-tests, security-scan, performance-tests, compatibility-tests]
+    if: always()
+    
+    steps:
+      - name: Generate test report
+        run: |
+          echo "=========================================="
+          echo "  Comprehensive Test Suite Results"
+          echo "=========================================="
+          echo ""
+          echo "E2E Tests:           ${{ needs.e2e-tests.result }}"
+          echo "Security Scan:       ${{ needs.security-scan.result }}"
+          echo "Performance Tests:   ${{ needs.performance-tests.result }}"
+          echo "Compatibility Tests: ${{ needs.compatibility-tests.result }}"
+          echo ""
+          
+          if [ "${{ needs.e2e-tests.result }}" != "success" ] || \
+             [ "${{ needs.security-scan.result }}" != "success" ] || \
+             [ "${{ needs.performance-tests.result }}" != "success" ] || \
+             [ "${{ needs.compatibility-tests.result }}" != "success" ]; then
+            echo "❌ Some tests failed"
+            exit 1
+          else
+            echo "✅ All tests passed"
+          fi

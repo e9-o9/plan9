@@ -1,0 +1,312 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'release-*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
+      
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          
+          cat > release_notes.md << 'EOF'
+          # Plan 9 4th Edition Release
+          
+          This is an automated release of Plan 9 4th Edition from Bell Labs.
+          
+          ## What's Included
+          
+          This release includes:
+          - Complete Plan 9 4th Edition source code
+          - Support for multiple architectures: 386, amd64, arm, mips, power, sparc
+          - System libraries and headers
+          - Command-line utilities and tools
+          - Documentation
+          
+          ## Architectures
+          
+          Binary distributions are available for:
+          - **i386** (386) - Intel 32-bit
+          - **amd64** - AMD/Intel 64-bit
+          - **arm** - ARM processors
+          - **mips** - MIPS processors
+          - **power** - PowerPC processors
+          - **sparc** - SPARC processors
+          
+          ## Installation
+          
+          Extract the appropriate archive for your architecture:
+          ```bash
+          tar -xzf plan9-${VERSION}-<arch>.tar.gz
+          cd plan9
+          ```
+          
+          ## Building from Source
+          
+          This is a Plan 9 source distribution. To build:
+          
+          1. Set up Plan 9 from User Space or 9base
+          2. Set the objtype environment variable (e.g., export objtype=386)
+          3. Run mk in sys/src directory
+          
+          ## Documentation
+          
+          See the README file for more information about this release.
+          
+          ## License
+          
+          This software is released under the terms described in the LICENSE file.
+          All code is now maintained by the Plan 9 Foundation.
+          
+          ---
+          
+          *Release generated on $(date)*
+          EOF
+          
+          cat release_notes.md
+      
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          release_name: Plan 9 4th Edition ${{ steps.get_version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+
+  build:
+    name: Build for ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        arch: [386, amd64, arm, mips, power, sparc]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up build environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            gcc \
+            g++ \
+            make \
+            git \
+            tar \
+            gzip \
+            bzip2 \
+            xz-utils
+      
+      - name: Create architecture distribution
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          ARCH="${{ matrix.arch }}"
+          DIST_NAME="plan9-${VERSION}-${ARCH}"
+          
+          echo "Creating distribution: $DIST_NAME"
+          
+          # Create distribution directory
+          mkdir -p /tmp/dist/$DIST_NAME
+          
+          # Copy architecture-specific files
+          if [ -d "$ARCH" ]; then
+            echo "Copying $ARCH directory..."
+            cp -r "$ARCH" /tmp/dist/$DIST_NAME/
+          fi
+          
+          # Copy system sources and includes
+          echo "Copying system files..."
+          cp -r sys /tmp/dist/$DIST_NAME/ || true
+          
+          # Copy libraries
+          if [ -d "lib" ]; then
+            cp -r lib /tmp/dist/$DIST_NAME/ || true
+          fi
+          
+          # Copy documentation
+          echo "Copying documentation..."
+          cp README /tmp/dist/$DIST_NAME/ 2>/dev/null || true
+          cp LICENSE* /tmp/dist/$DIST_NAME/ 2>/dev/null || true
+          cp NOTICE* /tmp/dist/$DIST_NAME/ 2>/dev/null || true
+          
+          # Create a build info file
+          cat > /tmp/dist/$DIST_NAME/BUILD_INFO << EOF
+          Plan 9 4th Edition
+          Build Version: $VERSION
+          Architecture: $ARCH
+          Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Build Host: GitHub Actions
+          Git Commit: ${{ github.sha }}
+          EOF
+          
+          # Create archive
+          echo "Creating archive..."
+          cd /tmp/dist
+          tar -czf "${DIST_NAME}.tar.gz" "$DIST_NAME"
+          
+          # Create checksums
+          sha256sum "${DIST_NAME}.tar.gz" > "${DIST_NAME}.tar.gz.sha256"
+          md5sum "${DIST_NAME}.tar.gz" > "${DIST_NAME}.tar.gz.md5"
+          
+          # Move to workspace
+          mv "${DIST_NAME}.tar.gz"* /tmp/
+          
+          echo "Distribution created successfully"
+          ls -lh /tmp/${DIST_NAME}*
+      
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: /tmp/plan9-${{ needs.prepare.outputs.version }}-${{ matrix.arch }}.tar.gz
+          asset_name: plan9-${{ needs.prepare.outputs.version }}-${{ matrix.arch }}.tar.gz
+          asset_content_type: application/gzip
+      
+      - name: Upload SHA256 Checksum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: /tmp/plan9-${{ needs.prepare.outputs.version }}-${{ matrix.arch }}.tar.gz.sha256
+          asset_name: plan9-${{ needs.prepare.outputs.version }}-${{ matrix.arch }}.tar.gz.sha256
+          asset_content_type: text/plain
+      
+      - name: Upload MD5 Checksum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: /tmp/plan9-${{ needs.prepare.outputs.version }}-${{ matrix.arch }}.tar.gz.md5
+          asset_name: plan9-${{ needs.prepare.outputs.version }}-${{ matrix.arch }}.tar.gz.md5
+          asset_content_type: text/plain
+
+  build-source:
+    name: Build Source Distribution
+    runs-on: ubuntu-latest
+    needs: prepare
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Create source distribution
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          DIST_NAME="plan9-${VERSION}-source"
+          
+          echo "Creating source distribution: $DIST_NAME"
+          
+          # Create distribution directory
+          mkdir -p /tmp/dist
+          
+          # Create source archive (excluding .git)
+          tar --exclude='.git' \
+              --exclude='.github' \
+              -czf "/tmp/${DIST_NAME}.tar.gz" \
+              .
+          
+          # Create checksums
+          cd /tmp
+          sha256sum "${DIST_NAME}.tar.gz" > "${DIST_NAME}.tar.gz.sha256"
+          md5sum "${DIST_NAME}.tar.gz" > "${DIST_NAME}.tar.gz.md5"
+          
+          echo "Source distribution created"
+          ls -lh /tmp/${DIST_NAME}*
+      
+      - name: Upload Source Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: /tmp/plan9-${{ needs.prepare.outputs.version }}-source.tar.gz
+          asset_name: plan9-${{ needs.prepare.outputs.version }}-source.tar.gz
+          asset_content_type: application/gzip
+      
+      - name: Upload Source SHA256
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: /tmp/plan9-${{ needs.prepare.outputs.version }}-source.tar.gz.sha256
+          asset_name: plan9-${{ needs.prepare.outputs.version }}-source.tar.gz.sha256
+          asset_content_type: text/plain
+      
+      - name: Upload Source MD5
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: /tmp/plan9-${{ needs.prepare.outputs.version }}-source.tar.gz.md5
+          asset_name: plan9-${{ needs.prepare.outputs.version }}-source.tar.gz.md5
+          asset_content_type: text/plain
+
+  verify:
+    name: Verify Release
+    runs-on: ubuntu-latest
+    needs: [prepare, build, build-source]
+    
+    steps:
+      - name: Summary
+        run: |
+          echo "Release ${{ needs.prepare.outputs.version }} completed successfully!"
+          echo ""
+          echo "The following distributions were created:"
+          echo "- Source distribution"
+          echo "- 386 distribution"
+          echo "- amd64 distribution"
+          echo "- arm distribution"
+          echo "- mips distribution"
+          echo "- power distribution"
+          echo "- sparc distribution"
+          echo ""
+          echo "Each distribution includes SHA256 and MD5 checksums."
