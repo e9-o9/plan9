@@ -1,0 +1,72 @@
+# Build artifacts
+*.o
+*.a
+*.8
+*.6
+*.5
+*.k
+*.q
+*.v
+*.out
+
+# Object files
+*.[0245689kqv]
+
+# Compiled binaries
+*.bin
+*.exe
+
+# Libraries
+*.lib
+*.so
+*.dylib
+
+# Temporary files
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
+.*.swp
+.*.swo
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-*
+.DS_Store
+
+# Log files
+*.log
+*.err
+
+# Testing
+test-results/
+coverage/
+
+# Build directories
+/tmp/
+.build/
+dist/
+
+# IDE specific
+.project
+.classpath
+.settings/
+
+# OS specific
+Thumbs.db
+.DS_Store
+
+# Backup files
+*.bak
+*.backup
+
+# Core dumps
+core
+core.*
+
+# Plan 9 specific temp files
+/386/lib/*.a.backup
+/amd64/lib/*.a.backup
+/arm/lib/*.a.backup
