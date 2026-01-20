@@ -31,7 +31,8 @@ This directory contains GitHub Actions workflows for automated CI/CD, testing, a
   - amd64 (AMD/Intel 64-bit)
   - arm (ARM processors)
   - mips (MIPS processors)
-  - power (PowerPC processors)
+  - power (PowerPC 32-bit processors)
+  - power64 (PowerPC 64-bit processors)
   - sparc (SPARC processors)
 - **Build Source**: Creates complete source distribution
 - **Verify**: Validates release completion

@@ -156,7 +156,7 @@ jobs:
         run: |
           echo "Testing architecture support..."
           
-          archs=(386 amd64 arm mips power sparc)
+          archs=(386 amd64 arm mips power power64 sparc)
           
           for arch in "${archs[@]}"; do
             if [ -d "$arch" ]; then

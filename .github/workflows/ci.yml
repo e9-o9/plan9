@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [386, amd64, arm]
+        arch: [386, amd64, arm, mips, power, sparc]
       fail-fast: false
     
     steps:
@@ -108,7 +108,7 @@ jobs:
           done
           
           # Check for architecture directories
-          for arch in 386 amd64 arm mips power sparc; do
+          for arch in 386 amd64 arm mips power power64 sparc; do
             if [ -d "$arch" ]; then
               echo "✓ Architecture $arch directory exists"
             fi
@@ -223,7 +223,7 @@ jobs:
           fi
           
           # Check architecture mkfiles
-          for arch in 386 amd64 arm; do
+          for arch in 386 amd64 arm mips power power64 sparc; do
             if [ -f "$arch/mkfile" ]; then
               echo "✓ Mkfile for $arch found"
             fi

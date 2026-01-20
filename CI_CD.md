@@ -48,7 +48,8 @@ The workflows build and test for the following architectures:
 - **amd64** - AMD/Intel 64-bit
 - **arm** - ARM processors
 - **mips** - MIPS processors
-- **power** - PowerPC processors
+- **power** - PowerPC 32-bit processors
+- **power64** - PowerPC 64-bit processors
 - **sparc** - SPARC processors
 
 ## Workflow Details
